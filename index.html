@@ -1,0 +1,291 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Astroid Rush</title>
+        <script src="phaser.min.js"></script>
+    </head>
+    <body>
+
+    <script type="text/javascript">
+
+    window.onload = function() {
+
+        var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example', { preload: preload, create: create, update: update, render: render });
+        var planet_sprites = [];
+
+       
+
+
+        function preload() {
+
+            game.load.image('space_background', 'img/backgrounds/space_background1.jpg');
+
+            game.load.image('korgothi', 'img/ships/ship1.png');
+            game.load.image('korgothi_turret', 'img/ships/turret1.png');
+            game.load.image('bullet', 'img/ships/bullet.png');
+
+            game.load.image('brown_planet', 'img/planets/planet1.png');
+            planet_sprites.push('brown_planet');
+
+
+            game.load.image('red_planet', 'img/planets/planet2.png');
+            planet_sprites.push('red_planet');
+            
+            game.load.image('yellow_planet', 'img/planets/planet3.png');
+            planet_sprites.push('yellow_planet');
+            
+            game.load.image('blue_planet', 'img/planets/planet6.png');
+            planet_sprites.push('blue_planet');
+
+
+            game.load.audio('boom', ['sounds/explode.mp3']); 
+            game.load.audio('shoot', ['sounds/shoot.mp3']); 
+
+            game.load.spritesheet('kaboom', 'img/explotions/explode.png', 128, 128);
+
+        }
+
+        var planets;
+        var astroids;
+        var small_astroids;
+        var bullets;
+        var explosions;
+        var players;
+
+        var ships;
+
+        var current_turret;
+        
+        var bullets;
+        var bulletTime = 0;
+
+
+        function create() {
+
+            var sprite = game.add.sprite(game.world.centerX, game.world.centerY, 'space_background');
+            sprite.anchor.set(0.5);
+
+
+            shoot = game.add.audio('shoot');
+
+            shoot.volume = shoot.volume*0.1;
+
+
+            boom = game.add.audio('boom');
+
+            boom.volume = boom.volume*0.1;
+    
+
+
+            planets = game.add.group();
+            planets.enableBody = true;
+            planets.physicsBodyType = Phaser.Physics.ARCADE;
+            planets.createMultiple(planet_sprites.length, 'planet');
+            planets.setAll('anchor.x', 0.5);
+            planets.setAll('anchor.y', 0.5);
+            planets.setAll('outOfBoundsKill', true);
+            planets.setAll('checkWorldBounds', true);
+
+            players = game.add.group();
+            players.enableBody = true;
+            players.physicsBodyType = Phaser.Physics.ARCADE;
+            players.createMultiple(5, 'player');
+            players.setAll('anchor.x', 0.5);
+            players.setAll('anchor.y', 0.5);
+            players.setAll('outOfBoundsKill', true);
+            players.setAll('checkWorldBounds', true);
+
+            bullets = game.add.group();
+            bullets.enableBody = true;
+            bullets.physicsBodyType = Phaser.Physics.ARCADE;
+            bullets.createMultiple(30, 'bullet');
+            bullets.setAll('anchor.x', 0.5);
+            bullets.setAll('anchor.y', 0.5);
+            
+            bullets.setAll('checkWorldBounds', true);
+
+            explosions = game.add.group();
+            explosions.createMultiple(30, 'kaboom');
+            explosions.forEach(setupExp, this);
+
+
+            shipparts = game.add.group();
+
+
+            game.stage.backgroundColor = '#000';
+            game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT; 
+            game.input.onDown.add(gofull, this);
+
+            createSomePlanets();
+            createPlayer();
+
+            current_turret = shipparts.getAt(1);
+        }
+
+
+
+        function gofull() {
+
+           // game.scale.startFullScreen();
+           // var sprite = game.add.sprite(game.world.centerX, game.world.centerY, 'space_background');
+           // sprite.anchor.set(0.5);
+
+
+        }
+
+        function createPlayer(){
+
+        var ship = game.add.sprite(Math.random()*game.width, Math.random()*game.height, "korgothi");
+        var turret = game.add.sprite(ship.x+65, ship.y+65, 'korgothi_turret');
+
+      
+        turret.anchor.x =0.5;
+        turret.anchor.y =27/35;
+        
+
+        shipparts.add(ship);
+        shipparts.add(turret);
+
+        shipparts.scale.x = 0.6;
+        shipparts.scale.y = 0.6;
+
+
+       
+
+
+
+
+        }   
+
+        function setupExp (exp) {
+
+            exp.anchor.x = 0.5;
+            exp.anchor.y = 0.5;
+            exp.animations.add('kaboom');
+
+            exp.scale.x = 0.3;
+            exp.scale.y = 0.3;
+
+
+        } 
+
+        function createSomePlanets(){
+
+            for (var i = 0; i < planet_sprites.length; i++){
+
+
+                    
+                var planet = planets.create(Math.random()*game.width*0.6 + game.width*0.2, Math.random()*game.height*0.6 + game.height*0.2, planet_sprites[i]);
+                
+                planet.anchor.setTo(0.5, 0.5);
+                planet.body.moves = true;
+                planet.angle = Math.random()*360;
+                planet.scale.x = (Math.random()*0.21 + 0.1);
+                planet.scale.y = planet.scale.x;
+                planet.rotation_speed = -(Math.random()*0.3) + (Math.random()*0.6);
+                planet.mass = 5000000;
+            
+
+
+            }
+ 
+        }
+
+        function fireBullet () {
+
+        //  To avoid them being allowed to fire too fast we set a time limit
+            if (game.time.now > bulletTime)
+            {
+                //  Grab the first bullet we can from the pool
+                bullet = bullets.getFirstExists(false);
+
+                if (bullet)
+                {
+                    //  And fire it
+                    bullet.reset((current_turret.x + current_turret.anchor.x)*shipparts.scale.x, (current_turret.y + current_turret.anchor.y)*shipparts.scale.y);
+
+                    bullet.body.velocity.x = Math.cos(((current_turret.angle-90)/180) * Math.PI)  * 400;
+                    bullet.body.velocity.y = Math.sin(((current_turret.angle-90)/180) * Math.PI) * 400;
+                    bullet.lifespan = 5000;
+                    shoot.play();    
+                    bulletTime = game.time.now + 100;
+                }
+            }
+
+        }
+
+        function collisionHandler (bullet, planet) {
+
+            //  When a bullet hits an alien we kill them both
+            bullet.kill();
+            //  And create an explosion :)
+            var explosion = explosions.getFirstExists(false);
+            explosion.reset(bullet.body.x, bullet.body.y);
+            explosion.play('kaboom', 30, false, true);
+            boom.play();
+
+          
+
+        }   
+
+        function update() {
+
+            planets.forEach(function(child){
+
+                child.angle += child.rotation_speed;
+
+            }, this, false); 
+
+
+            bullets.forEachAlive(function(bullet){
+                bullet.body.acceleration.x = 0;
+                bullet.body.acceleration.y = 0;
+                
+                planets.forEachAlive(function(planet){
+
+                    var dist = game.physics.arcade.distanceBetween(bullet,planet);
+                    var diehoek = game.physics.arcade.angleBetween(bullet,planet);
+                    
+                    bullet.body.acceleration.x += Math.cos(diehoek) * (planet.mass/Math.pow(dist,2));
+                    bullet.body.acceleration.y += Math.sin(diehoek) * (planet.mass/Math.pow(dist,2));
+
+
+
+                    console.log(diehoek);
+
+                }, this, false);
+
+               
+
+            },this, false)  
+
+
+            if (game.input.mousePointer.isDown){
+
+                
+
+                current_turret.angle = -(Math.atan2((current_turret.x+current_turret.anchor.x)*shipparts.scale.x-game.input.x, (current_turret.anchor.y+current_turret.y)*shipparts.scale.x-    game.input.y)) / Math.PI * 180;
+
+                fireBullet();
+                
+            }
+
+            
+
+            game.physics.arcade.overlap(bullets, planets, collisionHandler, null, this);  
+
+        }
+
+        function render () {
+
+            
+
+        }
+    }    
+    </script>
+
+    
+
+    </body>
+</html>
